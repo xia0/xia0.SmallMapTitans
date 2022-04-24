@@ -25,7 +25,7 @@ void function SmallMapTitansInit() {
 
 void function OnEnterPlaying() {
 	//Chat_ServerBroadcast("PLAYING");
-	thread AddRoundTime_Threaded(90);	// Add a couple mins to live fire modes
+	thread AddRoundTime_Threaded(GetConVarFloat("small_map_titans_additional_lf_time"));	// Add a couple mins to live fire modes
 }
 
 void function AddRoundTime_Threaded(float time) {
