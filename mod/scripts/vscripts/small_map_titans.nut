@@ -134,10 +134,10 @@ void function OnPlayerRespawned( entity player ) {
 	    weapon.SetWeaponPrimaryClipCount(0);
 		}
 		GivePassive(player, ePassives.PAS_STEALTH_MOVEMENT);
+		GivePassive(player, ePassives.PAS_FAST_EMBARK); // Give phase embark as QOL
 		Rodeo_Disallow(player); // Disable rodeo so players will get in the fucking robot shinji
 	}
-	GivePassive(player, ePassives.PAS_FAST_EMBARK); // Give phase embark as QOL
-
+	
 	//Disembark_Disallow(player); // Do not let player disembark because they could call a fresh titan
 	if (shouldSetInvincible) {
 		player.SetInvulnerable();
