@@ -1,0 +1,23 @@
+{
+	"Name" : "xia0.SmallMapTitans",
+	"Description" : "Allows titans to be dropped on maps they shouldn't be.",
+	"Version": "1.0",
+	"LoadPriority": 1,
+	"ConVars": [
+		{ "Name": "small_map_titans_modes",
+			"DefaultValue": "tffa,ttdm,attdm,speedball" },
+		{ "Name": "small_map_titans_maps",
+			"DefaultValue": "mp_lf_uma,mp_lf_deck,mp_lf_meadow,mp_lf_stacks,mp_lf_traffic,mp_lf_traffic,mp_lf_township,mp_coliseum,mp_coliseum_column" },
+		{ "Name": "small_map_titans_invincible_time",
+			"DefaultValue": "30" }
+	],
+	"Scripts": [
+		{
+			"Path": "small_map_titans.nut",
+			"RunOn": "SERVER && MP",
+			"ServerCallback": {
+				"After": "SmallMapTitansInit"
+			}
+		}
+	]
+}
