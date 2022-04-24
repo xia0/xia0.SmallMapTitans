@@ -12,6 +12,8 @@ void function SmallMapTitansInit() {
 		Riff_ForceSetSpawnAsTitan( eSpawnAsTitan.Never );	// Force players to spawn as pilots
 		AddCallback_OnPlayerKilled( OnPlayerKilled );
 		AddCallback_OnPlayerRespawned( OnPlayerRespawned );
+		//AddCallback_OnClientConnected(OnPlayerConnected);
+		//AddCallback_OnClientConnected(OnPlayerDisconnected);
 		if (GameRules_GetGameMode() == "speedball") {
 			shouldSetInvincible = false;
 			editPilotLoadout = false;
@@ -24,6 +26,19 @@ void function SmallMapTitansInit() {
 	}
 }
 
+void function OnPlayerConnected( entity player ) {
+	/*
+	if (IsAlive(player)) {
+		player.Die();
+		Chat_ServerBroadcast("DIE");
+	}
+	*/
+}
+
+void function OnPlayerDisconnected( entity player ) {
+	//KillPlayersTitan(player);
+	//player.Die();
+}
 
 void function OnEnterPlaying() {
 	//Chat_ServerBroadcast("PLAYING");
@@ -106,9 +121,9 @@ void function SpawnTitan_Threaded(entity player) {
 		}
 
 		while (GameRules_GetGameMode() != "speedball" // We do not wait in lf because we want the titan to drop as soon as players spawn
-					 && !IsValid(GetPlayerTitanInMap( player ))
 					 && IsValid(player)
-					 && Length(player.GetVelocity()) == 0) WaitFrame();	// Wait until player starts to move
+					 && Length(player.GetVelocity()) == 0
+					 && !IsValid(GetPlayerTitanInMap( player ))) WaitFrame();	// Wait until player starts to move
 		while (IsValid(player) && Length(player.GetVelocity()) > 0) WaitFrame();	// Now wait until player stops
 
 		Point dropPoint;
@@ -128,7 +143,8 @@ void function SpawnTitan_Threaded(entity player) {
 		// Wait until player has either embarked or moved away from titan
 		while (IsValid(player)
 					 && IsValid(GetPlayerTitanInMap( player ))
-					 && !player.IsTitan() && !IsPlayerEmbarking(player)
+					 && !player.IsTitan()
+					 && !IsPlayerEmbarking(player)
 					 && Distance( player.GetOrigin(), GetPlayerTitanInMap( player ).GetOrigin() ) < 250) {
 			//Chat_ServerBroadcast(Distance( player.GetOrigin(), GetPlayerTitanInMap( player ).GetOrigin() ).tostring())
 			WaitFrame();
