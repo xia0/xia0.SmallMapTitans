@@ -5,6 +5,8 @@ bool editPilotLoadout = true;
 bool giveOnlyOneTitan = false;
 
 void function SmallMapTitansInit() {
+	if (GameRules_GetGameMode() == "speedball" && GetCurrentPlaylistName().find("_lf") != null) return; // Do not enable on special lf modes
+
 	if (split(StringReplace(GetConVarString("small_map_titans_modes"), " ", "", true), ",").find(GameRules_GetGameMode()) >= 0
 			&& GetConVarString("small_map_titans_maps").find(GetMapName()) != null) {
 		Riff_ForceSetSpawnAsTitan( eSpawnAsTitan.Never );	// Force players to spawn as pilots
@@ -25,6 +27,7 @@ void function SmallMapTitansInit() {
 
 void function OnEnterPlaying() {
 	//Chat_ServerBroadcast("PLAYING");
+	//Chat_ServerBroadcast(GetCurrentPlaylistName());
 	thread AddRoundTime_Threaded(GetConVarFloat("small_map_titans_additional_lf_time"));	// Add a couple mins to live fire modes
 }
 
