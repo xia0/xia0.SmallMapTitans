@@ -1,5 +1,5 @@
 # xia0.SmallMapTitans
-Allow titan spawning on small maps i.e. Live Fire and Coliseum. Players will spawn invisible and invincible until they get into their titan. Suggested modes are TFFA, TTDM and Speedball (Live Fire).
+Allow titan spawning on small maps i.e. Live Fire and Coliseum. Players will spawn invisible and invincible until they get into their titan. Suggested modes are TFFA, TTDM and Speedball (Live Fire). Titan spawning is janky and players can get their titans stuck.
 
 |ConVar|Default|Description|
 |----|----|----|
