@@ -11,7 +11,7 @@
 		{ "Name": "small_map_titans_invincible_time",
 			"DefaultValue": "30" },
 		{ "Name": "small_map_titans_additional_lf_time",
-			"DefaultValue": "60" }
+			"DefaultValue": "30" }
 	],
 	"Scripts": [
 		{
