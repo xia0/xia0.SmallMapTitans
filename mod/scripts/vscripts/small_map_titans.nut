@@ -126,27 +126,22 @@ void function OnPlayerRespawned( entity player ) {
 	if (editPilotLoadout) {
 		foreach ( entity weapon in player.GetMainWeapons() ) player.TakeWeaponNow( weapon.GetWeaponClassName() );
 		foreach ( entity weapon in player.GetOffhandWeapons() ) player.TakeWeaponNow( weapon.GetWeaponClassName() );
-		
-		// Give stim so player can reposition more quickly
-		//player.GiveOffhandWeapon( "mp_ability_heal", OFFHAND_LEFT )
-		//StimPlayer( player, GetConVarFloat("small_map_titans_invincible_time") );
 
 		// Give the player something to hold to know they are cloaked
 		player.GiveWeapon("mp_weapon_semipistol");
 		foreach ( entity weapon in player.GetMainWeapons() ) {
-			weapon.SetWeaponPrimaryAmmoCount(0);
-			weapon.SetWeaponPrimaryClipCount(0);
+	    weapon.SetWeaponPrimaryAmmoCount(0);
+	    weapon.SetWeaponPrimaryClipCount(0);
 		}
 		GivePassive(player, ePassives.PAS_STEALTH_MOVEMENT);
-		GivePassive(player, ePassives.PAS_FAST_EMBARK); // Give phase embark as QOL
 		Rodeo_Disallow(player); // Disable rodeo so players will get in the fucking robot shinji
 	}
-	
+	GivePassive(player, ePassives.PAS_FAST_EMBARK); // Give phase embark as QOL
+
 	//Disembark_Disallow(player); // Do not let player disembark because they could call a fresh titan
 	if (shouldSetInvincible) {
 		player.SetInvulnerable();
-		EnableCloakForever( player );
-		thread EndInvincibleTime( player, GetConVarFloat("small_map_titans_invincible_time") );
+		EnableCloak( player, GetConVarFloat("small_map_titans_invincible_time") );
 	}
 
 	if (!giveOnlyOneTitan) SendHudMessage( player, "Stand still in an open space to call your titan\n                  Move again to reposition", 0.35, 0.4, 240, 182, 27, 255, 0, 8, 2);
@@ -157,17 +152,21 @@ void function SpawnTitan_Threaded(entity player) {
 	while (GetGameState() != eGameState.WinnerDetermined && IsValid(player) && IsAlive(player) && !player.IsTitan() && !IsPlayerEmbarking(player)) {
 
 		// Players have a limited time of invincibility and invisibility to enter titan
-		//if (GetPlayerLastRespawnTime(player) < Time() - GetConVarFloat("small_map_titans_invincible_time")) {
-			//player.ClearInvulnerable();
-			//DisableCloakForever( player );
-		//	EndInvincibleTime( player );
-		//}
+		if (GetPlayerLastRespawnTime(player) < Time() - GetConVarFloat("small_map_titans_invincible_time")) player.ClearInvulnerable();
 
 		while (GameRules_GetGameMode() != "speedball" // We do not wait in lf because we want the titan to drop as soon as players spawn
 					 && IsValid(player)
 					 && Length(player.GetVelocity()) == 0
 					 && !IsValid(GetPlayerTitanInMap( player ))) WaitFrame();	// Wait until player starts to move
-		while (IsValid(player) && Length(player.GetVelocity()) > 0) WaitFrame();	// Now wait until player stops
+		while (IsValid(player)
+					 && (Length(player.GetVelocity()) > 0
+					 		 || GetVerticalClearance(player.GetOrigin()) <= 275 )
+				  ){
+						 //Chat_ServerBroadcast(GetVerticalClearance(player.GetOrigin()).tostring());
+						 WaitFrame();	// Now wait until player stops
+					 }
+
+					 //Chat_ServerBroadcast("DROPPING " + GetVerticalClearance(player.GetOrigin()).tostring());
 
 		Point dropPoint;
 		if (IsValid(player) && IsAlive(player) && !player.IsTitan() && !IsPlayerEmbarking(player)) {
@@ -196,19 +195,11 @@ void function SpawnTitan_Threaded(entity player) {
 		}
 	}
 
-	if (IsValid(player)) EndInvincibleTime(player);
+	if (IsValid(player)) player.ClearInvulnerable();
 }
 
 void function KillPlayersTitan( entity player ) {
 	if (!PlayerHasTitan(player)) return;
 	entity titan = GetPlayerTitanInMap( player );
 	if (IsValid(titan) && IsAlive(titan)) titan.Die();
-}
-
-void function EndInvincibleTime( entity player, float delay = 0 ) {
-	wait delay;
-	if (IsValid(player) && IsAlive(player)) {
-		player.ClearInvulnerable();
-		DisableCloakForever(player);
-	}
 }
