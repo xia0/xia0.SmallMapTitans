@@ -124,8 +124,9 @@ void function OnPlayerRespawned( entity player ) {
 	if (!IsValid(player)) return;
 
 	if (editPilotLoadout) {
-		foreach ( entity weapon in player.GetMainWeapons() ) player.TakeWeaponNow( weapon.GetWeaponClassName() );
-		foreach ( entity weapon in player.GetOffhandWeapons() ) player.TakeWeaponNow( weapon.GetWeaponClassName() );
+		//foreach ( entity weapon in player.GetMainWeapons() ) player.TakeWeaponNow( weapon.GetWeaponClassName() );
+		//foreach ( entity weapon in player.GetOffhandWeapons() ) player.TakeWeaponNow( weapon.GetWeaponClassName() );
+		TakeAllWeapons(player);
 
 		// Give the player something to hold to know they are cloaked
 		player.GiveWeapon("mp_weapon_semipistol");
