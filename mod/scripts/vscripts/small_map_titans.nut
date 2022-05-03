@@ -121,7 +121,7 @@ void function OnPlayerKilled( entity victim, entity attacker, var damageInfo ) {
 }
 
 void function OnPlayerRespawned( entity player ) {
-	if (!IsValid(player)) return;
+	if (!IsValidPlayer(player)) return;
 
 	if (editPilotLoadout) {
 		//foreach ( entity weapon in player.GetMainWeapons() ) player.TakeWeaponNow( weapon.GetWeaponClassName() );
@@ -150,18 +150,18 @@ void function OnPlayerRespawned( entity player ) {
 }
 
 void function SpawnTitan_Threaded(entity player) {
-	while (GetGameState() != eGameState.WinnerDetermined && IsValid(player) && IsAlive(player) && !player.IsTitan() && !IsPlayerEmbarking(player)) {
+	while (GetGameState() != eGameState.WinnerDetermined && IsValidPlayer(player) && IsAlive(player) && !player.IsTitan() && !IsPlayerEmbarking(player)) {
 
 		// Players have a limited time of invincibility and invisibility to enter titan
 		if (GetPlayerLastRespawnTime(player) < Time() - GetConVarFloat("small_map_titans_invincible_time")) player.ClearInvulnerable();
 
 		while (GameRules_GetGameMode() != "speedball" // We do not wait in lf because we want the titan to drop as soon as players spawn
-					 && IsValid(player)
+					 && IsValidPlayer(player)
 					 && Length(player.GetVelocity()) == 0
 					 && !IsValid(GetPlayerTitanInMap( player ))) WaitFrame();	// Wait until player starts to move
-		while (IsValid(player)
+		while (IsValidPlayer(player)
 					 && (Length(player.GetVelocity()) > 0
-					 		 || GetVerticalClearance(player.GetOrigin()) <= 275 )
+					 		 || GetVerticalClearance(player.GetOrigin()) <= 250 )
 				  ){
 						 //Chat_ServerBroadcast(GetVerticalClearance(player.GetOrigin()).tostring());
 						 WaitFrame();	// Now wait until player stops
@@ -170,14 +170,14 @@ void function SpawnTitan_Threaded(entity player) {
 					 //Chat_ServerBroadcast("DROPPING " + GetVerticalClearance(player.GetOrigin()).tostring());
 
 		Point dropPoint;
-		if (IsValid(player) && IsAlive(player) && !player.IsTitan() && !IsPlayerEmbarking(player)) {
+		if (IsValidPlayer(player) && IsAlive(player) && !player.IsTitan() && !IsPlayerEmbarking(player)) {
 			dropPoint.origin = player.GetOrigin();
 			dropPoint.angles = player.GetAngles();
 			thread CreateTitanForPlayerAndHotdrop( player, dropPoint );
 		}
 
 		// Wait for titan to drop
-		while (IsValid(player) && IsAlive(player) && IsReplacementDropInProgress(player)) {
+		while (IsValidPlayer(player) && IsAlive(player) && IsReplacementDropInProgress(player)) {
 			if (PlayerHasTitan(player) && Distance( player.GetOrigin(), player.GetPetTitan().GetOrigin() ) < 200) PlayerLungesToEmbark(player, player.GetPetTitan());
 			else if (Distance( player.GetOrigin(), dropPoint.origin ) > relocateTitanDistance) KillPlayersTitan(player); // Kill the titan if the player has moved away from the drop point
 			WaitFrame();
@@ -186,7 +186,7 @@ void function SpawnTitan_Threaded(entity player) {
 		if (giveOnlyOneTitan) return;
 
 		// Wait until player has either embarked or moved away from titan
-		while (IsValid(player)
+		while (IsValidPlayer(player)
 					 && IsValid(GetPlayerTitanInMap( player ))
 					 && !player.IsTitan()
 					 && !IsPlayerEmbarking(player)
@@ -196,7 +196,7 @@ void function SpawnTitan_Threaded(entity player) {
 		}
 	}
 
-	if (IsValid(player)) player.ClearInvulnerable();
+	if (IsValidPlayer(player)) player.ClearInvulnerable();
 }
 
 void function KillPlayersTitan( entity player ) {
