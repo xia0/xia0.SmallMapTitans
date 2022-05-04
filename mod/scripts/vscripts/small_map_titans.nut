@@ -163,7 +163,7 @@ void function SpawnTitan_Threaded(entity player) {
 					 && (Length(player.GetVelocity()) > 0
 					 		 || (GetVerticalClearance(player.GetOrigin()) <= 280 && GetVerticalClearance(player.GetOrigin()) > 60) )
 				  ){
-						 Chat_ServerBroadcast(GetVerticalClearance(player.GetOrigin()).tostring());
+						 //Chat_ServerBroadcast(GetVerticalClearance(player.GetOrigin()).tostring());
 						 WaitFrame();	// Now wait until player stops
 					 }
 
