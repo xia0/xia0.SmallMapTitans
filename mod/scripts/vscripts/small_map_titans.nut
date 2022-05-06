@@ -118,6 +118,7 @@ void function OnPlayerKilled( entity victim, entity attacker, var damageInfo ) {
 	if (victim.IsTitan() || giveOnlyOneTitan) return;
 	// Kill the titan if the player died and wasn't even in it
 	KillPlayersTitan(victim);
+	UpdateNextRespawnTime(victim, Time());	// ALlow instant respawn since we have to wait for titan to drop
 }
 
 void function OnPlayerRespawned( entity player ) {
