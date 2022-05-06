@@ -155,31 +155,53 @@ void function SpawnTitan_Threaded(entity player) {
 		// Players have a limited time of invincibility and invisibility to enter titan
 		if (GetPlayerLastRespawnTime(player) < Time() - GetConVarFloat("small_map_titans_invincible_time")) player.ClearInvulnerable();
 
+		/*
 		while (GameRules_GetGameMode() != "speedball" // We do not wait in lf because we want the titan to drop as soon as players spawn
 					 && IsValidPlayer(player)
 					 && Length(player.GetVelocity()) == 0
 					 && !IsValid(GetPlayerTitanInMap( player ))) WaitFrame();	// Wait until player starts to move
+
 		while (IsValidPlayer(player)
 					 && (Length(player.GetVelocity()) > 0
-					 		 || (GetVerticalClearance(player.GetOrigin()) <= 280 && GetVerticalClearance(player.GetOrigin()) > 60) )
+					 		 || (GetVerticalClearance(player.GetOrigin()) <= 280 && GetVerticalClearance( OriginToGround(player.GetOrigin()) ) > 60) )
 				  ){
 						 //Chat_ServerBroadcast(GetVerticalClearance(player.GetOrigin()).tostring());
 						 WaitFrame();	// Now wait until player stops
 					 }
 
 					 //Chat_ServerBroadcast("DROPPING " + GetVerticalClearance(player.GetOrigin()).tostring());
+		*/
 
+		// TEST ADS functionality
+		while (GameRules_GetGameMode() != "speedball"
+					 && !player.GetActiveWeapon().IsWeaponInAds()
+					 && !( (GetVerticalClearance(player.GetOrigin()) <= 280 && GetVerticalClearance( OriginToGround(player.GetOrigin()) ) > 60) )
+					) WaitFrame();
+
+
+		// Call actual titan here
 		Point dropPoint;
 		if (IsValidPlayer(player) && IsAlive(player) && !player.IsTitan() && !IsPlayerEmbarking(player)) {
-			dropPoint.origin = player.GetOrigin();
+			dropPoint.origin = OriginToGround(player.GetOrigin());
 			dropPoint.angles = player.GetAngles();
 			thread CreateTitanForPlayerAndHotdrop( player, dropPoint );
 		}
 
+		//while (player.GetActiveWeapon().IsWeaponInAds()) WaitFrame(); // Wait for player to leave ADS before being able to call titan again
+
 		// Wait for titan to drop
+		bool hasLeftADS = false;
 		while (IsValidPlayer(player) && IsAlive(player) && IsReplacementDropInProgress(player)) {
+			if (!hasLeftADS && !player.GetActiveWeapon().IsWeaponInAds()) hasLeftADS = true;
 			if (PlayerHasTitan(player) && Distance( player.GetOrigin(), player.GetPetTitan().GetOrigin() ) < 200) PlayerLungesToEmbark(player, player.GetPetTitan());
-			else if (Distance( player.GetOrigin(), dropPoint.origin ) > relocateTitanDistance) KillPlayersTitan(player); // Kill the titan if the player has moved away from the drop point
+			//else if (Distance( player.GetOrigin(), dropPoint.origin ) > relocateTitanDistance) KillPlayersTitan(player); // Kill the titan if the player has moved away from the drop point
+			if (hasLeftADS
+					&& player.GetActiveWeapon().IsWeaponInAds()
+					&& Distance( player.GetOrigin(), dropPoint.origin ) > relocateTitanDistance
+			) {
+				KillPlayersTitan(player);
+				continue; // call titan again
+			}
 			WaitFrame();
 		}
 
@@ -190,7 +212,8 @@ void function SpawnTitan_Threaded(entity player) {
 					 && IsValid(GetPlayerTitanInMap( player ))
 					 && !player.IsTitan()
 					 && !IsPlayerEmbarking(player)
-					 && Distance( player.GetOrigin(), GetPlayerTitanInMap( player ).GetOrigin() ) < relocateTitanDistance) {
+					 //&& Distance( player.GetOrigin(), GetPlayerTitanInMap( player ).GetOrigin() ) < relocateTitanDistance
+					 ) {
 			//Chat_ServerBroadcast(Distance( player.GetOrigin(), GetPlayerTitanInMap( player ).GetOrigin() ).tostring())
 			WaitFrame();
 		}
@@ -202,5 +225,9 @@ void function SpawnTitan_Threaded(entity player) {
 void function KillPlayersTitan( entity player ) {
 	if (!PlayerHasTitan(player)) return;
 	entity titan = GetPlayerTitanInMap( player );
-	if (IsValid(titan) && IsAlive(titan)) titan.Die();
+	if (IsValid(titan) && IsAlive(titan)) {
+		StopSoundOnEntity( player, "titanfall_on_human" )
+		titan.Hide();
+		titan.Die();
+	}
 }
