@@ -13,7 +13,7 @@ void function SmallMapTitansInit() {
 		Riff_ForceSetSpawnAsTitan( eSpawnAsTitan.Never );	// Force players to spawn as pilots
 		AddCallback_OnPlayerKilled( OnPlayerKilled );
 		AddCallback_OnPlayerRespawned( OnPlayerRespawned );
-		AddCallback_OnClientConnected(OnPlayerConnected);
+		AddCallback_OnClientConnected( OnPlayerConnected );
 		//AddCallback_OnClientConnected(OnPlayerDisconnected);
 		if (GameRules_GetGameMode() == "speedball") {
 			shouldSetInvincible = false;
@@ -21,7 +21,8 @@ void function SmallMapTitansInit() {
 			giveOnlyOneTitan = true;
 			AddCallback_GameStateEnter( eGameState.Playing, OnEnterPlaying );
 			AddCallback_GameStateEnter( eGameState.WinnerDetermined, OnWinnerDetermined );
-			AddCallback_OnPilotBecomesTitan( DropFlagForBecomingTitan );
+			//AddCallback_OnPilotBecomesTitan( DropFlagForBecomingTitan );
+			AddCallback_OnTouchHealthKit( "item_flag", OnFlagCollected );
 		}
 		//if (GetCurrentPlaylistVarInt("classic_mp", 1) == 1) ClassicMP_DefaultNoIntro_Setup();
 		ClassicMP_SetCustomIntro( ClassicMP_DefaultNoIntro_Setup, ClassicMP_DefaultNoIntro_GetLength() )
@@ -57,67 +58,40 @@ bool function PlayerHasFlag( entity player ) {
 	return false;
 }
 
-void function DropFlagForBecomingTitan( entity pilot, entity titan ) {
-	//Chat_ServerBroadcast("EMBARKING");
-	if (PlayerHasFlag(pilot)) thread PhaseToDropFlag_Threaded( pilot );
+bool function OnFlagCollected( entity player, entity flag ) {
+	thread MonitorForEmbark_Threaded( player, flag );
+	return false;
 }
 
-void function PhaseToDropFlag_Threaded(entity ent) {
-	//Chat_ServerBroadcast("PHASING");
-	while (PlayerHasFlag(ent)) {
-		PhaseShift( ent, 0, 0.001 );
+void function MonitorForEmbark_Threaded( entity player, entity flag ) {
+	while (IsValidPlayer(player) && IsAlive(player) && PlayerHasFlag(player)) {
+		if (IsPlayerEmbarking(player) || player.IsTitan()) {
+			player.Signal( "OnDestroy" );
+			WaitFrame();
+			flag.SetAngles(< 0, 0, 0 >);
+			return;
+		}
 		WaitFrame();
 	}
 }
 
-/*
-mixtape_1  | [15:42:49] [info] [SERVER SCRIPT] TitanDisembarkDebug: Player  <-747.961, 1719.03, 4.03125> <0, 42.4555, 0> mp_lf_traffic
-mixtape_1  | [15:42:49] [info] [SERVER SCRIPT] SCRIPT ERROR: [SERVER] ContextAction_SetBusy: Already in the middle of a context action: execution_target
-mixtape_1  | [15:42:49] [info] [SERVER SCRIPT]  -> player.ContextAction_SetBusy()
-mixtape_1  | [15:42:49] [info] [SERVER SCRIPT]
-mixtape_1  | CALLSTACK
-mixtape_1  | *FUNCTION [PlayerDisembarksTitanWithSequenceFuncs()] titan/sh_titan_embark.gnut line [1400]
-mixtape_1  | *FUNCTION [PlayerDisembarksTitan()] titan/sh_titan_embark.gnut line [1371]
-mixtape_1  |
-mixtape_1  | [15:42:49] [info] [SERVER SCRIPT] LOCALS
-mixtape_1  | [wasCustomDisembark] false
-mixtape_1  | [e] TABLE
-mixtape_1  | [titanSequenceFunc] CLOSURE
-mixtape_1  | [playerSequenceFunc] CLOSURE
-mixtape_1  | [player] ENTITY (player XymaScope [3] (player "XymaScope" at <-747.961 1719.03 4.03125>))
-mixtape_1  | [this] TABLE
-mixtape_1  | [player] ENTITY (player XymaScope [3] (player "XymaScope" at <-747.961 1719.03 4.03125>))
-mixtape_1  | [this] TABLE
-mixtape_1  |
-mixtape_1  | DIAGPRINTS
-mixtape_1  |
-mixtape_1  | [15:42:49] [info] [SERVER SCRIPT] ShouldDoReplay(): Not doing a replay because the player died from an execution.
-*/
 
 void function OnWinnerDetermined() {
 	//Chat_ServerBroadcast("WINNER DETERMINED");
 	foreach (entity player in GetPlayerArray()) {
-		//KillPlayersTitan(player);
 		if (player.IsTitan()) {
 			// Have each player disembark to prevent crash
 			entity titan = CreateAutoTitanForPlayer_ForTitanBecomesPilot(player);
 			DispatchSpawn( titan );
 			thread TitanBecomesPilot(player, titan);
-
-			//if ( player.ContextAction_IsBusy() ) {
-
-			//}
-			// thread PlayerDisembarksTitan( player );
-			//thread ForcedTitanDisembark(player);
-
 		}
 	}
 }
 
 void function OnPlayerKilled( entity victim, entity attacker, var damageInfo ) {
-	if (victim.IsTitan() || giveOnlyOneTitan) return;
+	if (giveOnlyOneTitan) return;	// Don't kill the titan in LF mode
 	// Kill the titan if the player died and wasn't even in it
-	KillPlayersTitan(victim);
+	if (PlayerHasTitan(victim)) KillPlayersTitan(victim);
 	UpdateNextRespawnTime(victim, Time());	// ALlow instant respawn since we have to wait for titan to drop
 }
 
@@ -125,8 +99,6 @@ void function OnPlayerRespawned( entity player ) {
 	if (!IsValidPlayer(player)) return;
 
 	if (editPilotLoadout) {
-		//foreach ( entity weapon in player.GetMainWeapons() ) player.TakeWeaponNow( weapon.GetWeaponClassName() );
-		//foreach ( entity weapon in player.GetOffhandWeapons() ) player.TakeWeaponNow( weapon.GetWeaponClassName() );
 		TakeAllWeapons(player);
 
 		// Give the player something to hold to know they are cloaked
@@ -136,11 +108,10 @@ void function OnPlayerRespawned( entity player ) {
 	    weapon.SetWeaponPrimaryClipCount(0);
 		}
 		GivePassive(player, ePassives.PAS_STEALTH_MOVEMENT);
+		GivePassive(player, ePassives.PAS_FAST_EMBARK);
 		Rodeo_Disallow(player); // Disable rodeo so players will get in the fucking robot shinji
 	}
-	GivePassive(player, ePassives.PAS_FAST_EMBARK); // Give phase embark as QOL
 
-	//Disembark_Disallow(player); // Do not let player disembark because they could call a fresh titan
 	if (shouldSetInvincible) {
 		player.SetInvulnerable();
 		EnableCloak( player, GetConVarFloat("small_map_titans_invincible_time") );
@@ -156,53 +127,57 @@ void function SpawnTitan_Threaded(entity player) {
 		// Players have a limited time of invincibility and invisibility to enter titan
 		if (GetPlayerLastRespawnTime(player) < Time() - GetConVarFloat("small_map_titans_invincible_time")) player.ClearInvulnerable();
 
-		/*
 		while (GameRules_GetGameMode() != "speedball" // We do not wait in lf because we want the titan to drop as soon as players spawn
 					 && IsValidPlayer(player)
 					 && Length(player.GetVelocity()) == 0
 					 && !IsValid(GetPlayerTitanInMap( player ))) WaitFrame();	// Wait until player starts to move
 
+		// Wait while player is moving or not enough vertical clearance
 		while (IsValidPlayer(player)
-					 && (Length(player.GetVelocity()) > 0
-					 		 || (GetVerticalClearance(player.GetOrigin()) <= 280 && GetVerticalClearance( OriginToGround(player.GetOrigin()) ) > 60) )
-				  ){
-						 //Chat_ServerBroadcast(GetVerticalClearance(player.GetOrigin()).tostring());
-						 WaitFrame();	// Now wait until player stops
-					 }
+					 && (Length(player.GetVelocity()) > 0 ||
+					 		 GetVerticalClearance( (OriginToGround(player.GetOrigin())) + < 0, 0, 10 > ) < 285 )
+				  ) WaitFrame();	// Now wait until player stops
 
 					 //Chat_ServerBroadcast("DROPPING " + GetVerticalClearance(player.GetOrigin()).tostring());
+
+
+		/*
+		while (player.GetActiveWeapon().IsWeaponInAds()) WaitFrame();
+
+		// Wait for player to ADS
+		while ( GameRules_GetGameMode() != "speedball" && IsValidPlayer(player) && IsAlive(player) ) {
+			Chat_ServerBroadcast(GetVerticalClearance( (OriginToGround(player.GetOrigin())) + < 0, 0, 10 > ).tostring());
+			// Check if player is ADS
+			if (player.GetActiveWeapon().IsWeaponInAds()) {
+				Chat_ServerBroadcast("ADS");
+
+				// Check for vertical clearance
+				if ( GetVerticalClearance( (OriginToGround(player.GetOrigin())) + < 0, 0, 10 > ) < 280 ) {
+					EmitSoundOnEntityOnlyToPlayer( player, player, "DataKnife_Hack_Spectre_Pt2" )
+					while (IsValidPlayer(player) && player.GetActiveWeapon().IsWeaponInAds()) WaitFrame(); // Wait for player to leave ADS
+				}
+				else {
+					break;
+				}
+			}
+			WaitFrame();
+		}
 		*/
 
-		// TEST ADS functionality
-		while (GameRules_GetGameMode() != "speedball"
-					 && !player.GetActiveWeapon().IsWeaponInAds()
-					 && !( (GetVerticalClearance(player.GetOrigin()) <= 280 && GetVerticalClearance( OriginToGround(player.GetOrigin()) ) > 60) )
-					) WaitFrame();
-
+		//if (GameRules_GetGameMode() == "speedball") player.FreezeControlsOnServer(); // Freeze controls - sometimes NS lets players wander away
 
 		// Call actual titan here
 		Point dropPoint;
 		if (IsValidPlayer(player) && IsAlive(player) && !player.IsTitan() && !IsPlayerEmbarking(player)) {
 			dropPoint.origin = OriginToGround(player.GetOrigin());
-			dropPoint.angles = player.GetAngles();
+			dropPoint.angles = VectorToAngles( FlattenVector(player.GetViewVector()) );
 			thread CreateTitanForPlayerAndHotdrop( player, dropPoint );
 		}
 
-		//while (player.GetActiveWeapon().IsWeaponInAds()) WaitFrame(); // Wait for player to leave ADS before being able to call titan again
-
 		// Wait for titan to drop
-		bool hasLeftADS = false;
 		while (IsValidPlayer(player) && IsAlive(player) && IsReplacementDropInProgress(player)) {
-			if (!hasLeftADS && !player.GetActiveWeapon().IsWeaponInAds()) hasLeftADS = true;
 			if (PlayerHasTitan(player) && Distance( player.GetOrigin(), player.GetPetTitan().GetOrigin() ) < 200) PlayerLungesToEmbark(player, player.GetPetTitan());
-			//else if (Distance( player.GetOrigin(), dropPoint.origin ) > relocateTitanDistance) KillPlayersTitan(player); // Kill the titan if the player has moved away from the drop point
-			if (hasLeftADS
-					&& player.GetActiveWeapon().IsWeaponInAds()
-					&& Distance( player.GetOrigin(), dropPoint.origin ) > relocateTitanDistance
-			) {
-				KillPlayersTitan(player);
-				continue; // call titan again
-			}
+			else if (!giveOnlyOneTitan && Distance( player.GetOrigin(), dropPoint.origin ) > relocateTitanDistance) KillPlayersTitan(player); // Kill the titan if the player has moved away from the drop point
 			WaitFrame();
 		}
 
@@ -213,9 +188,8 @@ void function SpawnTitan_Threaded(entity player) {
 					 && IsValid(GetPlayerTitanInMap( player ))
 					 && !player.IsTitan()
 					 && !IsPlayerEmbarking(player)
-					 //&& Distance( player.GetOrigin(), GetPlayerTitanInMap( player ).GetOrigin() ) < relocateTitanDistance
+					 && Distance( player.GetOrigin(), GetPlayerTitanInMap( player ).GetOrigin() ) < relocateTitanDistance
 					 ) {
-			//Chat_ServerBroadcast(Distance( player.GetOrigin(), GetPlayerTitanInMap( player ).GetOrigin() ).tostring())
 			WaitFrame();
 		}
 	}
@@ -227,8 +201,29 @@ void function KillPlayersTitan( entity player ) {
 	if (!PlayerHasTitan(player)) return;
 	entity titan = GetPlayerTitanInMap( player );
 	if (IsValid(titan) && IsAlive(titan)) {
-		StopSoundOnEntity( player, "titanfall_on_human" )
-		titan.Hide();
+		titan.MakeInvisible()
 		titan.Die();
 	}
 }
+
+
+
+/*
+// Trying to stop titanfall noise
+entity titan = player.GetPetTitan();
+float impactTime = GetHotDropImpactTime( titan, "at_hotdrop_drop_2knee_turbo" )
+Attachment result = titan.Anim_GetAttachmentAtTime( "at_hotdrop_drop_2knee_turbo", "OFFSET", impactTime )
+vector maxs = titan.GetBoundingMaxs()
+vector mins = titan.GetBoundingMins()
+int mask = titan.GetPhysicsSolidMask()
+vector origin = ModifyOriginForDrop( dropPoint.origin, mins, maxs, result.position, mask )
+StopSoundAtPosition(dropPoint.origin, "Titan_1P_Warpfall_Start")
+StopSoundAtPosition(dropPoint.origin, "Titan_1P_Warpfall_CallIn")
+StopSoundAtPosition(dropPoint.origin, "Titan_3P_Warpfall_Start")
+StopSoundAtPosition(dropPoint.origin, "Titan_3P_Warpfall_CallIn")
+StopSoundAtPosition(origin, "Titan_1P_Warpfall_WarpToLanding_fast")
+StopSoundAtPosition(origin, "Titan_3P_Warpfall_WarpToLanding_fast")
+StopSoundAtPosition(origin, "titan_hot_drop_turbo_begin")
+StopSoundAtPosition(origin, "titan_hot_drop_turbo_begin_3P")
+StopSoundOnEntity(player, "titan_hot_drop_turbo_begin")
+*/
